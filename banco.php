@@ -6,10 +6,12 @@
 function get_pdo(): PDO {
     static $pdo = null;
     if ($pdo === null) {
-        $host = getenv('DB_HOST') ?: 'localhost';
-        $dbname = getenv('DB_NAME') ?: 'database';
-        $user = getenv('DB_USER') ?: 'user';
-        $pass = getenv('DB_PASS') ?: 'pass';
+        // Credenciais do banco de dados fornecidas pelo HostGator
+        $host = getenv('HG_DB_HOST') ?: 'seu_host';
+        $dbname = getenv('HG_DB_NAME') ?: 'seu_banco';
+        $user = getenv('HG_DB_USER') ?: 'seu_usuario';
+        $pass = getenv('HG_DB_PASS') ?: 'sua_senha';
+
         $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
         $pdo = new PDO($dsn, $user, $pass);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
