@@ -1,3 +1,11 @@
+### [v0.2.0] - Importação de Extrato de Fundos via PDF
+
+**Adicionado:**
+- Script `parse_fundos_pdf.py` para extrair "Transações em processamento" e "Transações concluídas" de arquivos PDF.
+- Exportação para CSV temporário e reutilização do importador `parse_nubank_csv`.
+
+---
+
 ### [v0.1.0] - Upload de CSV e Validação Automática (Pacote 1.1 a 1.3)
 
 **Adicionado:**
