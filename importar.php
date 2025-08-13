@@ -6,9 +6,11 @@
  * Espera-se que o arquivo tenha as colunas: data, título e valor.
  *
  * @param string $path Caminho para o arquivo CSV.
+ * @param int $accountId ID da conta associada.
+ * @param string $tipo Tipo da transação (ex: crédito, débito).
  * @return array Lista de registros inseridos.
  */
-function parse_nubank_csv(string $path): array
+function parse_nubank_csv(string $path, int $accountId, string $tipo): array
 {
     require_once __DIR__ . '/banco.php';
 
@@ -47,23 +49,13 @@ function parse_nubank_csv(string $path): array
         }
         $valor = -abs((float)$valorLimpo);
 
-        // Detecta parcelas no título
-        $parcelaAtual = null;
-        $parcelaTotal = null;
-        if (preg_match('/Parcela\s+(\d+)\/(\d+)/i', $titulo, $matches)) {
-            $parcelaAtual = (int)$matches[1];
-            $parcelaTotal = (int)$matches[2];
-        }
-
         // Insere no banco de dados
-        insert_transaction($data, $titulo, $valor, $parcelaAtual, $parcelaTotal);
+        insert_transaction($accountId, $data, $titulo, $valor, $tipo, null, $path);
 
         $registros[] = [
             'date' => $data,
             'title' => $titulo,
             'amount' => $valor,
-            'parcela_atual' => $parcelaAtual,
-            'parcela_total' => $parcelaTotal,
         ];
     }
 

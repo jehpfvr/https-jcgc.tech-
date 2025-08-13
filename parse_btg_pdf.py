@@ -65,14 +65,21 @@ def _export_csv(records: List[Record]) -> str:
     return tmp.name
 
 
-def _import_csv(csv_path: str) -> None:
+def _import_csv(csv_path: str, account_id: int, tipo: str) -> None:
     """Reuse existing PHP importer to ingest the CSV."""
     script_path = os.path.join(os.path.dirname(__file__), "importar.php")
-    php_code = f"require '{script_path}'; parse_nubank_csv('{csv_path}');"
+    php_code = (
+        f"require '{script_path}'; parse_nubank_csv('{csv_path}', {account_id}, '{tipo}');"
+    )
     subprocess.run(["php", "-r", php_code], check=True)
 
 
-def parse_btg_pdf(pdf_path: str, run_import: bool = True) -> str:
+def parse_btg_pdf(
+    pdf_path: str,
+    account_id: int,
+    tipo: str,
+    run_import: bool = True,
+) -> str:
     """Parse BTG PDF and optionally import via existing flow.
 
     Returns the path to the generated temporary CSV."""
@@ -80,7 +87,7 @@ def parse_btg_pdf(pdf_path: str, run_import: bool = True) -> str:
     records = _parse_lines(lines)
     csv_path = _export_csv(records)
     if run_import:
-        _import_csv(csv_path)
+        _import_csv(csv_path, account_id, tipo)
     return csv_path
 
 
@@ -89,11 +96,18 @@ if __name__ == "__main__":
         description="Extrai transações de um PDF do BTG e reutiliza fluxo de importação."
     )
     parser.add_argument("pdf", help="Caminho para o PDF do extrato do BTG.")
+    parser.add_argument("--account-id", type=int, default=0, help="ID da conta")
+    parser.add_argument("--tipo", default="desconhecido", help="Tipo da transação")
     parser.add_argument(
         "--no-import",
         action="store_true",
         help="Apenas gera o CSV temporário sem importar para o banco de dados.",
     )
     args = parser.parse_args()
-    csv_file = parse_btg_pdf(args.pdf, run_import=not args.no_import)
+    csv_file = parse_btg_pdf(
+        args.pdf,
+        account_id=args.account_id,
+        tipo=args.tipo,
+        run_import=not args.no_import,
+    )
     print(csv_file)
