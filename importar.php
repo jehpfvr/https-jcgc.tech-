@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/validador_csv.php';
+require_once __DIR__ . '/parse_nubank_credit_csv.php';
+
 /**
  * Lê um CSV exportado do Nubank e insere cada registro no banco de dados.
  *
@@ -62,6 +65,29 @@ function parse_nubank_csv(string $path, int $accountId, string $tipo): array
     fclose($handle);
 
     return $registros;
+}
+
+/**
+ * Importa um CSV identificando automaticamente o tipo do arquivo.
+ *
+ * @param string $path Caminho para o arquivo CSV.
+ * @param int    $accountId ID da conta associada.
+ * @param string $tipo Tipo da transação (ex: crédito, débito).
+ * @return array Lista de registros inseridos.
+ */
+function importar_csv(string $path, int $accountId, string $tipo): array
+{
+    $tipoArquivo = detectar_tipo_csv($path);
+
+    if ($tipoArquivo === 'conta') {
+        return parse_nubank_csv($path, $accountId, $tipo);
+    }
+
+    if ($tipoArquivo === 'cartao') {
+        return parse_nubank_credit_csv($path, $accountId, $tipo);
+    }
+
+    throw new RuntimeException('Tipo de arquivo CSV não reconhecido.');
 }
 
 ?>
