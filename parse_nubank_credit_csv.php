@@ -1,17 +1,19 @@
 <?php
 
+require_once __DIR__ . '/banco.php';
+
 /**
- * Lê um CSV exportado do Nubank e insere cada registro no banco de dados.
+ * Faz a leitura de um CSV de cartão de crédito do Nubank e insere as
+ * transações no banco de dados.
  *
- * Espera-se que o arquivo tenha as colunas: data, título e valor.
+ * Espera-se que o arquivo possua as colunas: date, title e amount.
+ * Valores positivos representam despesas; valores negativos, créditos.
  *
  * @param string $path Caminho para o arquivo CSV.
- * @return array Lista de registros inseridos.
+ * @return array Lista de transações inseridas.
  */
-function parse_nubank_csv(string $path): array
+function parse_nubank_credit_csv(string $path): array
 {
-    require_once __DIR__ . '/banco.php';
-
     if (!file_exists($path)) {
         throw new InvalidArgumentException("Arquivo não encontrado: {$path}");
     }
@@ -22,34 +24,30 @@ function parse_nubank_csv(string $path): array
     }
 
     // Ignora o cabeçalho
-    $headers = fgetcsv($handle);
+    fgetcsv($handle);
 
     $registros = [];
     while (($row = fgetcsv($handle)) !== false) {
-        // Assume que as colunas são [data, titulo, valor]
         $dataBruta = trim($row[0] ?? '');
         $titulo = trim($row[1] ?? '');
         $valorBruto = trim($row[2] ?? '0');
 
         // Converte data para YYYY-MM-DD
-        $dataObj = \DateTime::createFromFormat('d/m/Y', $dataBruta);
+        $dataObj = \DateTime::createFromFormat('Y-m-d', $dataBruta);
         if ($dataObj === false) {
-            // Tenta formato alternativo
-            $dataObj = new \DateTime($dataBruta);
+            $dataObj = \DateTime::createFromFormat('d/m/Y', $dataBruta) ?: new \DateTime($dataBruta);
         }
         $data = $dataObj->format('Y-m-d');
 
-        // Converte valor para decimal e ajusta sinal
+        // Converte valor e ajusta sinal
         $valorLimpo = preg_replace('/[^0-9,.-]/', '', $valorBruto);
         if (str_contains($valorLimpo, ',')) {
-            // Formato brasileiro: milhar com ponto e decimal com vírgula
             $valorLimpo = str_replace(['.', ','], ['', '.'], $valorLimpo);
         }
         $valorNumerico = (float)$valorLimpo;
-        // Valores positivos indicam despesa; negativos indicam crédito
         $valor = $valorNumerico > 0 ? -$valorNumerico : abs($valorNumerico);
 
-        // Detecta parcelas no título
+        // Detecta parcelas
         $parcelaAtual = null;
         $parcelaTotal = null;
         if (preg_match('/Parcela\s+(\d+)\/(\d+)/i', $titulo, $matches)) {
@@ -57,7 +55,6 @@ function parse_nubank_csv(string $path): array
             $parcelaTotal = (int)$matches[2];
         }
 
-        // Insere no banco de dados
         insert_transaction($data, $titulo, $valor, $parcelaAtual, $parcelaTotal);
 
         $registros[] = [
@@ -74,4 +71,21 @@ function parse_nubank_csv(string $path): array
     return $registros;
 }
 
+// Execução via linha de comando
+if (php_sapi_name() === 'cli' && basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
+    if ($argc < 2) {
+        fwrite(STDERR, "Uso: php parse_nubank_credit_csv.php <arquivo.csv>\n");
+        exit(1);
+    }
+
+    try {
+        $transacoes = parse_nubank_credit_csv($argv[1]);
+        echo 'Importadas ' . count($transacoes) . " transações.\n";
+    } catch (Exception $e) {
+        fwrite(STDERR, 'Erro: ' . $e->getMessage() . "\n");
+        exit(1);
+    }
+}
+
 ?>
+
